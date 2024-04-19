@@ -34,5 +34,9 @@ Genre : Homme
 12.  Insteller package mail
   -> php artisan make:mail SendPDF
 
-  
+13. Le chemin est de : 
+    -> 120.0.0.7:8000/etudiants
+    
+
+
 

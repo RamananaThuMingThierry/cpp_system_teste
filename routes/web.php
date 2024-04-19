@@ -17,9 +17,11 @@ use App\Http\Controllers\API\EtudiantController;
 Route::get('/', function () {
     return view('index');
 });
+
+// Route pour générer automatiquement les étudiants
 Route::get('/genere-etudiant', [EtudiantController::class, 'genereLaListeDesEtudiants'])->name('etudiant.genere');
 
-
+// Route pour exporter les données en pdf
 Route::get('/export-pdf', [EtudiantController::class, 'exportPDF'])->name('etudiant.exportPdf');
 
 Route::get('/etudiant', [EtudiantController::class, 'index'])->name('etudiant.index');
