@@ -27,4 +27,12 @@ Genre : Homme
 
 9.  Configurer le controller des Etudiants
     
-10. 
+10. Configurer les routes en utilisant route:api ou route:web
+
+11. Installer package DOMPDF
+  -> composer require dompdf/dompdf
+12.  Insteller package mail
+  -> php artisan make:mail SendPDF
+
+  
+

@@ -2,62 +2,120 @@
 
 namespace App\Http\Controllers\API;
 
+use Dompdf\Dompdf;
+use App\Mail\SendPDF;
 use App\Models\Etudiant;
+use Faker\Factory as Faker;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\View;
 use App\Http\Requests\EtudiantRequest;
-use Illuminate\Support\Facades\Validator;
 
 class EtudiantController extends Controller
 {
+
+    public function page_email(){
+        return view('etudiants.send_email_pdf');
+    }
+
+    public function sendEmail(Request $request)
+    {
+        $pdfFile = $request->file('pdf_file');
+        
+        // Vérifiez si un fichier a été téléchargé
+        if ($pdfFile) {
+            // Envoyez l'email avec le fichier PDF en pièce jointe
+            Mail::to('ramananathumingthierry@gmail.com')->send(new SendPDF($pdfFile));
+
+            // Rediriger avec un message de succès
+            return redirect()->route('etudiant.index')->with('success', 'Email envoyé avec succès!');
+        
+        } else {
+            // Rediriger avec un message d'erreur si aucun fichier n'a été téléchargé
+            return redirect()->back()->with('error', 'Veuillez sélectionner un fichier PDF à envoyer.');
+        }
+        
+    }
+    
+    public function genereLaListeDesEtudiants()
+    {
+        $faker = Faker::create('fr_FR'); // Utilisez le local français pour générer des noms, prénoms, etc. français
+
+        for ($i = 0; $i < 50; $i++) { // Générer 10 étudiants
+            Etudiant::create([
+                'nom' => $faker->lastName,
+                'prenom' => $faker->firstName,
+                'promotion' => $faker->randomElement(['Licence', 'Master 1', 'Master 2']),
+                'genre' => $faker->randomElement(['Homme', 'Femme', 'Autres']),
+            ]);
+        }
+
+        return redirect()->route('etudiant.index')->with('success', 'Données des étudiants générées avec succès!');
+    }
+
+    public function exportPDF()
+    {
+        $etudiants = Etudiant::all(); // Supposons que vous récupérez les étudiants depuis votre modèle Etudiant
+        $pdf = new Dompdf();
+        $pdf->loadHtml(View::make('etudiants.pdf_etudiant', ['etudiants' => $etudiants])->render());
+        $pdf->setPaper('A4', 'landscape'); // Pour définir l'orientation du papier en mode paysage
+        $pdf->render();
+        return $pdf->stream(); 
+        // Pour afficher le PDF dans le navigateur
+        // Ou bien, vous pouvez enregistrer le PDF sur le serveur en utilisant :
+        // return $pdf->save(storage_path('app/etudiants.pdf'));
+
+    }
+    
+    public function search(Request $request)
+    {
+        $query = $request->input('query');
+        $etudiants = Etudiant::where('nom', 'LIKE', "%$query%")
+            ->orWhere('prenom', 'LIKE', "%$query%")
+            ->paginate(10);
+
+        return view('etudiants.etudiant', compact('etudiants'));
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $etudiant = Etudiant::all();
-        return response()->json([
-            'etudiant' => $etudiant
-        ], 200);
+        $etudiants = Etudiant::Paginate(10);
+        // return response()->json([
+        //     'etudiants' => $etudiants
+        // ], 200);
+        
+        $nombre = $etudiants->count();
+
+        return view('etudiants.etudiant', compact('etudiants','nombre'));
+    }
+
+    public function create(){
+        return view('etudiants.create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(EtudiantRequest $request)
     {
 
-         $validator = Validator::make($request->all(), [
-            'nom' => 'required|string|max:255',
-            'prenom' => 'nullable|string',
-            'promotion' => 'required|string',
-            'genre' => 'required|in:Homme,Femme,Autres'
-        ]);        
+        $etudiant = new Etudiant();
+        $etudiant->nom = $request->input('nom');
+        $etudiant->prenom = $request->input('prenom');
+        $etudiant->promotion = $request->input('promotion');
+        $etudiant->genre = $request->input('genre');
+        $etudiant->save();
 
-        if($validator->fails()){
-            
-            return response()->json([
-                'errors' => $validator->messages(),
-            ], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
-
-        }else{   
-        
-            $nom = $request->nom;
-            $prenom = $request->prenom;
-            $promotion = $request->promotion;
-            $genre = $request->genre;
-
-            Etudiant::create([
-                'nom' => $nom,
-                'prenom' => $prenom,
-                'promotion' => $promotion,
-                'genre' => $genre
-            ]);
-            return response()->json([
-                'message' => 'Enregistrement réussi!'
-             ], 200);
-        }
+        return redirect()->route('etudiant.index')->with('success', 'Enregistrement réuissi!');
+       
+        //     return response()->json([
+        //         'message' => 'Enregistrement réussi!'
+        //      ], 200);
+        // }
     }
 
     /**
@@ -87,52 +145,50 @@ class EtudiantController extends Controller
         }
     }
 
+
+    public function edit(String $id){
+         // Vérifions si id_etudiant existe dans la base de données
+         $verifcation_id = Etudiant::where('id', $id)->exists();
+
+         if($verifcation_id){
+           
+             // Récupérer l'étudiant qui a cet id
+             $etudiant = Etudiant::where('id', $id)->first();
+           
+             // Retourne le données en json
+             return view("etudiants.update", compact('etudiant'));
+ 
+         }else{
+            
+             return response()->json([
+                 'message' => 'Cet idenfiant étudiant n\'existe pas dans la base de données!'
+             ], 404);
+ 
+         }
+        return view('etudiants.update', compact('etudiant'));
+    }
+
+
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(EtudiantRequest $request, string $id)
     {
         // Vérifions si id_etudiant existe dans la base de données
         $verifcation_id = Etudiant::where('id', $id)->exists();
 
         if($verifcation_id){
-            $validator = Validator::make($request->all(), [
-                'nom' => 'required|string|max:255',
-                'prenom' => 'nullable|string',
-                'promotion' => 'required|string',
-                'genre' => 'required|in:Homme,Femme,Autres'
-            ]);        
-    
-            if($validator->fails()){
-                
-                return response()->json([
-                    'errors' => $validator->messages(),
-                ], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
-    
-            }else{   
             
-                // Récupérer l'étudiant qu'on veut modifier
-                $update_etudiant = Etudiant::where('id', $id)->first();
+            $etudiant = Etudiant::find($id);
 
-                $nom = $request->nom;
-                $prenom = $request->prenom;
-                $promotion = $request->promotion;
-                $genre = $request->genre;
-    
-                $update_etudiant->update([
-                    'nom' => $nom,
-                    'prenom' => $prenom,
-                    'promotion' => $promotion,
-                    'genre' => $genre
-                ]);
-                return response()->json([
-                    'message' => 'Modification réussi!'
-                 ], 200);
-            }
+            $etudiant->nom = $request->input('nom');
+            $etudiant->prenom = $request->input('prenom');
+            $etudiant->promotion = $request->input('promotion');
+            $etudiant->genre = $request->input('genre');
+            $etudiant->save();
+            return redirect()->route('etudiant.index')->with('success', 'Modification réuissi!');
         }else{
-            return response()->json([
-                'message' => 'Cet idenfiant étudiant n\'existe pas dans la base de données!'
-            ], 404);
+            return redirect()->route('etudiant.index')->with('warning', 'Cet idenfiant étudiant n\'existe pas dans la base de données!');
         }
     }
 
@@ -152,16 +208,9 @@ class EtudiantController extends Controller
             $etudiant->delete();
 
             // Retourne le données en json
-            return response()->json([
-                'message' => 'Suppression réussi'
-            ], 200);
-
+            return redirect()->route('etudiant.index')->with('success', 'Suppression réuissi!');
         }else{
-           
-            return response()->json([
-                'message' => 'Cet idenfiant étudiant n\'existe pas dans la base de données!'
-            ], 404);
-
+            return redirect()->route('etudiant.index')->with('warning', 'Cet idenfiant étudiant n\'existe pas dans la base de données!');
         }
     }
 }
