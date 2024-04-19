@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('etudiants', function (Blueprint $table) {
             $table->id();
             $table->string('nom', 255);
-            $table->string('prenom', 100)->nullabl();
+            $table->string('prenom', 100)->nullable();
             $table->string('promotion');
             $table->enum('genre', ['Homme', 'Femme', 'Autres'])->default('Homme');
             $table->timestamps();

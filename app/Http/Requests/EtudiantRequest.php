@@ -24,7 +24,8 @@ class EtudiantRequest extends FormRequest
         return [
             'nom' => 'required|string|max:255',
             'prenom' => 'nullable|string',
-            'promotion' => 'required|string'
+            'promotion' => 'required|string',
+            'genre' => 'required|string'
         ];
     }
 }
